@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <style>
-      body { font-family: sans-serif; padding: 10px; width: 200px; background: #f7f7f7; }
+      body { font-family: sans-serif; padding: 10px; width: 220px; background: #f7f7ff; }
       h3 { margin-top: 0; text-align: center;}
       button {
         display: block;
@@ -16,18 +16,63 @@
         cursor: pointer;
         transition: opacity 0.2s;
       }
-      button:disabled {
-        cursor: not-allowed;
-        opacity: 0.7;
-      }
+      button:disabled { cursor: not-allowed; opacity: 0.7; }
       #downloadWav { background: #5b8df7; color: white; }
       #downloadMp3 { background: #4caf50; color: white; }
+      #stopBtn { background: #f44336; color: white; }
+      .settings {
+        border-top: 1px solid #ddd;
+        padding-top: 10px;
+        margin-top: 10px;
+        font-size: 14px;
+      }
+      .settings div {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+        justify-content: space-between;
+      }
+      .settings input[type="checkbox"] {
+        margin-right: 8px;
+      }
+      .settings input[type="number"] {
+        width: 40px;
+      }
     </style>
   </head>
   <body>
     <h3>Suno Downloader</h3>
     <button id="downloadWav">Download All WAVs</button>
     <button id="downloadMp3">Download All MP3s</button>
+    <button id="stopBtn" style="display: none;">Stop Downloads</button>
+
+    <div class="settings">
+      <div>
+        <label for="delaySeconds">Delay (seconds)</label>
+        <input type="number" id="delaySeconds" min="0" value="3" step="1">
+      </div>
+      <div>
+        <label for="createSubfolder">Create Subfolder</label>
+        <input type="checkbox" id="createSubfolder" checked>
+      </div>
+      <div>
+        <label for="includeJpeg">Include Cover Art</label>
+        <input type="checkbox" id="includeJpeg" checked>
+      </div>
+      <div>
+        <label for="includeLyrics">Include Lyrics</label>
+        <input type="checkbox" id="includeLyrics" checked>
+      </div>
+      <div>
+        <label for="includeStyle">Include Style</label>
+        <input type="checkbox" id="includeStyle" checked>
+      </div>
+      <div>
+        <label for="includeUuid">Include UUID in Filename</label>
+        <input type="checkbox" id="includeUuid" checked>
+      </div>
+    </div>
+
     <div id="status" style="margin-top:10px; font-size:12px; color:#333; text-align: center;"></div>
     <script src="popup.js"></script>
   </body>

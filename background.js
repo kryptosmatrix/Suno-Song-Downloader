@@ -2,47 +2,74 @@
 import { downloadMp3 } from './mp3-downloader.js';
 import { downloadWav } from './wav-downloader.js';
 
-console.log("background.js: Service worker started.");
+let downloadState = {
+  inProgress: false,
+  total: 0,
+  current: 0,
+  text: ''
+};
 
-async function processQueue(queue, tabId) {
-  console.log(`background.js: Starting to process a queue of ${queue.length} songs.`);
-  const total = queue.length;
+let isStopRequested = false;
+
+// This function is for the mass downloader (from the popup)
+async function processQueue(queue, tabId, settings, workspaceName) {
+  isStopRequested = false;
+  downloadState.inProgress = true;
+  downloadState.total = queue.length;
 
   for (let i = 0; i < queue.length; i++) {
-    const song = queue[i];
-    const progress = `(${i + 1}/${total})`;
-    console.log(`background.js: Processing song ${progress}: "${song.name}"`);
-
-    chrome.runtime.sendMessage({
-      action: 'updateStatus',
-      payload: { text: `Downloading ${song.name} ${progress}...` }
-    });
-
-    // Decide which downloader to use based on the format
-    if (song.format === 'mp3') {
-      await downloadMp3(song);
-    } else if (song.format === 'wav') {
-      await downloadWav(song, tabId);
+    if (isStopRequested) {
+      downloadState.inProgress = false;
+      chrome.runtime.sendMessage({ action: 'downloadComplete', payload: { text: `Download stopped.` } });
+      break;
+    }
+    
+    downloadState.current = i + 1;
+    const currentSong = queue[i];
+    downloadState.text = `Downloading ${currentSong.name} (${downloadState.current}/${downloadState.total})...`;
+    chrome.runtime.sendMessage({ action: 'updateStatus', payload: { text: downloadState.text } });
+    
+    if (currentSong.format === 'mp3') {
+      await downloadMp3(currentSong, settings, workspaceName);
+    } else if (currentSong.format === 'wav') {
+      await downloadWav(currentSong, tabId, settings, workspaceName);
     }
 
-    // Add a random delay between 2 and 5 seconds
-    const delay = Math.random() * 3000 + 2000; // 2000ms to 5000ms
-    console.log(`Waiting for ${Math.round(delay / 1000)} seconds...`);
-    await new Promise(resolve => setTimeout(resolve, delay));
+    const userDelaySeconds = settings.delay && !isNaN(settings.delay) ? settings.delay : 3;
+    const delayMilliseconds = userDelaySeconds * 1000;
+    if (delayMilliseconds > 0) {
+        await new Promise(resolve => setTimeout(resolve, delayMilliseconds));
+    }
   }
-
-  console.log("background.js: Finished processing queue.");
-  chrome.runtime.sendMessage({
-    action: 'downloadComplete',
-    payload: { text: `Finished ${total} downloads.` }
-  });
+  
+  if (!isStopRequested) {
+    downloadState.inProgress = false;
+    chrome.runtime.sendMessage({ action: 'downloadComplete', payload: { text: `Finished ${downloadState.total} downloads.` } });
+  }
 }
 
-chrome.runtime.onMessage.addListener((message) => {
+// The main message listener
+chrome.runtime.onMessage.addListener((message, sender) => {
   if (message.action === 'startDownload') {
-    console.log("background.js: Received 'startDownload' message.", message.payload);
-    const { songs, format, tabId } = message.payload;
+    const { songs, format, tabId, settings, workspaceName } = message.payload;
     const queue = songs.map(song => ({ ...song, format }));
-    processQueue(queue, tabId);
+    processQueue(queue, tabId, settings, workspaceName);
+  } else if (message.action === 'stopDownload') {
+    isStopRequested = true;
+  } else if (message.action === 'getDownloadState') {
+    if (sender.url && sender.url.includes('popup.html')) {
+        chrome.runtime.sendMessage({ action: 'stateUpdate', payload: downloadState });
+    }
+  } 
+  // --- NEW: Handle single manual downloads ---
+  else if (message.action === 'manualDownload') {
+    const { song, format, settings, workspaceName } = message.payload;
+    const tabId = sender.tab.id; // Get the tabId from the message sender
+    if (format === 'mp3') {
+        downloadMp3(song, settings, workspaceName);
+    } else if (format === 'wav') {
+        downloadWav(song, tabId, settings, workspaceName);
+    }
   }
+  return true;
 });
