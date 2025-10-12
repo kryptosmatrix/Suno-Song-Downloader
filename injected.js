@@ -1,5 +1,3 @@
-// injected.js
-
 async function getAuthToken() {
   try {
     if (window.Clerk?.session) {
@@ -7,32 +5,44 @@ async function getAuthToken() {
       if (token) return token;
     }
   } catch (e) {
-    console.error("Injected: Failed to get Clerk token", e);
+    // Fail silently
   }
-  const cookie = document.cookie
-    .split(";")
-    .find(c => c.trim().startsWith("__session="));
+  const cookie = document.cookie.split("; ").find(c => c.trim().startsWith("__session="));
   return cookie ? cookie.split("=")[1].trim() : null;
 }
 
-async function triggerConversion(clipId) {
+async function convertAndFetchWavUrl(clipId) {
   const token = await getAuthToken();
-  if (!token) {
-    console.error("Injected: No auth token found for WAV conversion.");
-    return;
-  }
-  const base = "https://studio-api.prod.suno.ai/api/gen/";
+  if (!token) return { success: false, error: "No auth token" };
+
+  const base = "https://studio-api.prod.suno.com/api/gen/";
+  
   await fetch(`${base}${clipId}/convert_wav/`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` }
-  }).catch((e) => {
-    console.error("Injected: Triggering conversion failed.", e);
-  });
+  }).catch(() => {});
+
+  const startTime = Date.now();
+  while (Date.now() - startTime < 60000) {
+    try {
+        const res = await fetch(`${base}${clipId}/wav_file/`, { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const data = await res.json();
+          const url = data?.url || data?.wav_url || data?.audio_url;
+          if (url) return { success: true, url };
+        }
+    } catch (_) {}
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  return { success: false, error: "Polling for WAV URL timed out." };
 }
 
-// New, simpler event listener for WAV conversion.
-window.addEventListener("SunoTriggerWavConversion", async (event) => {
+window.addEventListener("SunoGetWavUrlRequest", async (event) => {
   const { clipId } = event.detail || {};
   if (!clipId) return;
-  await triggerConversion(clipId);
+  const result = await convertAndFetchWavUrl(clipId);
+  window.dispatchEvent(new CustomEvent("SunoGetWavUrlResponse", {
+    detail: { clipId, ...result }
+  }));
 });
+
