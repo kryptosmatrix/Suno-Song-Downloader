@@ -42,11 +42,15 @@ function setLoadingState(isLoading, statusText = '') {
   if (statusText) setStatus(statusText);
 }
 
+// --- MODIFIED: This function now uses a more precise selector ---
 function scrapeSongs() {
-  const songListContainer = document.querySelector('div[class*="content-container"]');
-  const searchRoot = songListContainer || document;
+  // This selector targets the main container for the song list, based on your finding.
+  const songListContainer = document.querySelector('div[role="rowgroup"]');
+  const searchRoot = songListContainer || document; // Fallback just in case
+
   const songLinks = searchRoot.querySelectorAll("a[href*='/song/']");
   if (!songLinks || songLinks.length === 0) return [];
+  
   const uniqueSongs = new Map();
   Array.from(songLinks).forEach(a => {
     const href = a.href;
