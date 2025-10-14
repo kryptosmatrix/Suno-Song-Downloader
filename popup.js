@@ -42,9 +42,9 @@ function setLoadingState(isLoading, statusText = '') {
   if (statusText) setStatus(statusText);
 }
 
-// --- MODIFIED: This function now uses a more precise selector ---
+// --- MODIFIED: This function now uses the precise selector you found ---
 function scrapeSongs() {
-  // This selector targets the main container for the song list, based on your finding.
+  // This selector targets the main container for the song list.
   const songListContainer = document.querySelector('div[role="rowgroup"]');
   const searchRoot = songListContainer || document; // Fallback just in case
 
@@ -62,6 +62,7 @@ function scrapeSongs() {
   });
   return Array.from(uniqueSongs.values());
 }
+
 
 function scrapeWorkspaceName() {
   const selector = 'div.css-9rwmp5.e1wyop193';
@@ -117,7 +118,10 @@ mp3Button.addEventListener('click', () => startDownload('mp3'));
 document.addEventListener('DOMContentLoaded', () => {
   loadSettings();
   chrome.runtime.sendMessage({ action: 'getDownloadState' }, (state) => {
-    if (chrome.runtime.lastError) return;
+    if (chrome.runtime.lastError) {
+        // This can happen if the background script is not ready, it's safe to ignore on first load.
+        return; 
+    }
     if (state && state.inProgress) {
       setLoadingState(true, state.text);
     }
@@ -129,6 +133,11 @@ chrome.runtime.onMessage.addListener((message) => {
     setLoadingState(true, message.payload.text);
   } else if (message.action === 'downloadComplete') {
     setLoadingState(false, message.payload.text);
+  } else if (message.action === 'stateUpdate') {
+    const state = message.payload;
+    if (state.inProgress) {
+        setLoadingState(true, state.text);
+    }
   }
 });
 
