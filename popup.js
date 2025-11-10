@@ -65,7 +65,12 @@ function scrapeSongs() {
 
 
 function scrapeWorkspaceName() {
-  const selector = 'div.css-9rwmp5.e1wyop193';
+  // --- OLD, INCORRECT SELECTOR ---
+  // const selector = 'div.css-9rwmp5.e1wyop193';
+  
+  // --- NEW, CORRECT SELECTOR (based on your info) ---
+  const selector = 'div.css-55xecx.e1sz90n63'; // This class seems to identify the workspace title
+  
   const element = document.querySelector(selector);
   return element?.textContent?.trim().replace(/[\/\\:*?"<>|]/g, '-') || 'Suno Downloads';
 }
@@ -140,4 +145,3 @@ chrome.runtime.onMessage.addListener((message) => {
     }
   }
 });
-
