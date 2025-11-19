@@ -1,5 +1,6 @@
 const wavButton = document.getElementById('downloadWav');
 const mp3Button = document.getElementById('downloadMp3');
+const copyScriptBtn = document.getElementById('copyScriptBtn'); // New Button
 const stopButton = document.getElementById('stopBtn');
 const statusDiv = document.getElementById('status');
 
@@ -42,11 +43,40 @@ function setLoadingState(isLoading, statusText = '') {
   if (statusText) setStatus(statusText);
 }
 
-// --- MODIFIED: This function now uses the precise selector you found ---
+// --- NEW: Logic to fetch and copy the script file ---
+copyScriptBtn.addEventListener('click', async () => {
+  try {
+    // Fetch the file content from the extension package
+    const response = await fetch('wav-mass-downloader-v2.js');
+    if (!response.ok) throw new Error('Script file not found.');
+    
+    const scriptText = await response.text();
+    
+    // Write to clipboard
+    await navigator.clipboard.writeText(scriptText);
+    
+    // Visual Feedback
+    const originalText = copyScriptBtn.textContent;
+    copyScriptBtn.textContent = 'Script Copied! 📋';
+    copyScriptBtn.style.background = '#4caf50';
+    
+    setTimeout(() => {
+      copyScriptBtn.textContent = originalText;
+      copyScriptBtn.style.background = '#9c27b0';
+    }, 2000);
+    
+    setStatus('Script copied to clipboard.');
+  } catch (err) {
+    console.error('Failed to copy script:', err);
+    setStatus('Error: Could not read script file.', true);
+  }
+});
+// --- END NEW ---
+
+
 function scrapeSongs() {
-  // This selector targets the main container for the song list.
   const songListContainer = document.querySelector('div[role="rowgroup"]');
-  const searchRoot = songListContainer || document; // Fallback just in case
+  const searchRoot = songListContainer || document;
 
   const songLinks = searchRoot.querySelectorAll("a[href*='/song/']");
   if (!songLinks || songLinks.length === 0) return [];
@@ -63,14 +93,9 @@ function scrapeSongs() {
   return Array.from(uniqueSongs.values());
 }
 
-
 function scrapeWorkspaceName() {
-  // --- OLD, INCORRECT SELECTOR ---
-  // const selector = 'div.css-9rwmp5.e1wyop193';
-  
-  // --- NEW, CORRECT SELECTOR (based on your info) ---
-  const selector = 'div.css-55xecx.e1sz90n63'; // This class seems to identify the workspace title
-  
+  // Updated to the correct selector
+  const selector = 'div.css-55xecx.e1sz90n63';
   const element = document.querySelector(selector);
   return element?.textContent?.trim().replace(/[\/\\:*?"<>|]/g, '-') || 'Suno Downloads';
 }
@@ -123,10 +148,7 @@ mp3Button.addEventListener('click', () => startDownload('mp3'));
 document.addEventListener('DOMContentLoaded', () => {
   loadSettings();
   chrome.runtime.sendMessage({ action: 'getDownloadState' }, (state) => {
-    if (chrome.runtime.lastError) {
-        // This can happen if the background script is not ready, it's safe to ignore on first load.
-        return; 
-    }
+    if (chrome.runtime.lastError) return; 
     if (state && state.inProgress) {
       setLoadingState(true, state.text);
     }
